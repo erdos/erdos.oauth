@@ -7,6 +7,8 @@ A ring wrapper in Clojure for OAuth support.
 1. Create an app id and secret on the admin console of the selected oauth provider.
 2. Create success and error callback functions as below.
 3. Transform the handler function with a configured oauth wrapper.
+4. Redirect the user to the url given in the `:url` key to start the authentication process.
+5. You can use multiple oauth wrapper functions at the same time to support many different OAuth providers. Please note that you need to use different `:url` values for each of them.
 
 ``` clojure
 

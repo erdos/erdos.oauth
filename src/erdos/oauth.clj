@@ -42,10 +42,8 @@
   - :id           - Client id
   - :secret       - Client secret
   - :url          - Local url for login
-  - :success      - Binary function called on success.
-                    First arg: request map, second arg: token.
-  - :error        - Binary function called on failure.
-                    First arg: request map, second arg: error info."
+  - :success      - Asyncronous ring handler fn called on success.
+  - :error        - Asyncronous ring handler fn called on error."
   [request response raise {:as opts :keys [error success]}]
   (assert (= (request->url request) (:url opts)))
   (assert (string? (:url-endpoint opts)))

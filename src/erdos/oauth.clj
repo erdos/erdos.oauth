@@ -57,8 +57,12 @@
   (assert (fn? (:error opts)))
   ;; (println request)
   (cond
+    ;; error during login:
     (-> request :query-params (get "error"))
-    (response (error request (-> request :query-params (get "error"))))
+    (error (assoc request :oauth-error (-> request :query-params (get "error")))
+           response
+           raise)
+    ;; successfully redirected back:
     (-> request :query-params (get "code"))
     (let [code (-> request :query-params (get "code"))
           m {"grant_type"    "authorization_code"
@@ -71,6 +75,7 @@
                    (fn [resp]
                      (try
                        (if-let [err (:error resp)]
+                         ;; code is maybe expired, etc.
                          (error (assoc request :oauth-error err)
                                 response
                                 raise)
@@ -84,7 +89,8 @@
                                     response
                                     raise)))
                        (catch Throwable t (raise t))))))
-    :default ;; not any parameters,
+    ;; redirect to provider:
+    :default
     (let [m {:client_id     (:id opts)
              :redirect_uri  (:url opts)
              :response_type :code}

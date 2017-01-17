@@ -33,6 +33,16 @@
   ([s] {:status 302, :headers {"Location" (str s)}})
   ([status s] {:status status, :headers {"Location" (str s)}}))
 
+(defn- query-string->params [query-string]
+  (if (.contains (str query-string) "=")
+    (into {} (for [x (.split (str query-string) "&")
+                   :let [[k v] (.split (str x) "=" 2)]]
+               [(java.net.URLDecoder/decode k "UTF-8")
+                (java.net.URLDecoder/decode v "UTF-8")]))))
+
+;; (query-string->params "ala=bama&in+my=dreams")
+;; (query-string->params nil)
+
 
 (defn handle-oauth
   "Arguments:
@@ -54,46 +64,48 @@
   (assert (fn? (:success opts)))
   (assert (fn? (:error opts)))
   ;; (println request)
-  (cond
-    ;; error during login:
-    (-> request :query-params (get "error"))
-    (error (assoc request :oauth-error (-> request :query-params (get "error")))
-           response
-           raise)
-    ;; successfully redirected back:
-    (-> request :query-params (get "code"))
-    (let [code (-> request :query-params (get "code"))
-          m {"grant_type"    "authorization_code"
-             "code"          code
-             "redirect_uri"  (:url opts)
-             "client_id"     (:id opts)
-             "client_secret" (:secret opts)}]
-      (client/post (:url-exchange opts)
-                   {:form-params m}
-                   (fn [resp]
-                     (try
-                       (if-let [err (:error resp)]
-                         ;; code is maybe expired, etc.
-                         (error (assoc request :oauth-error err)
-                                response
-                                raise)
-                         (let [obj (-> resp :body json/parse-string)
-                               m   {:access-token  (get obj "access_token"),
-                                    :expires-in    (get obj "expires_in"),
-                                    :token-type    (get obj "token_type")
-                                    ;; always Bearer!
-                                    :refresh-token (get obj "refresh_token")}]
-                           (success (assoc request :oauth-success m)
-                                    response
-                                    raise)))
-                       (catch Throwable t (raise t))))))
-    ;; redirect to provider:
-    :default
-    (let [m {:client_id     (:id opts)
-             :redirect_uri  (:url opts)
-             :response_type :code}
-          m (into m (:endpoint-params opts))]
-      (response (redirect-to 307 (build-url (:url-endpoint opts) m))))))
+  (let [query-params (-> request :query-string query-string->params)]
+    (cond
+      ;; error during login:
+      (contains? query-params "error")
+      (error (assoc request :oauth-error (query-params "error"))
+             response
+             raise)
+      ;; successfully redirected back:
+      (contains? query-params "code")
+      (let [m {"grant_type"    "authorization_code"
+               "code"          (query-params "code")
+               "redirect_uri"  (:url opts)
+               "client_id"     (:id opts)
+               "client_secret" (:secret opts)}]
+        (client/post (:url-exchange opts)
+                     {:form-params m}
+                     (fn [resp]
+                       (println :>>> resp)
+                       (try
+                         (let [obj (-> resp :body json/parse-string)]
+                           ;; code is maybe expired, etc.
+                           (if-let [err (get obj "error")]
+                             (-> request
+                                 (assoc :oauth-error err)
+                                 (error response raise))
+                             (-> request
+                                 (assoc
+                                  :oauth-success
+                                  {:access-token  (get obj "access_token")
+                                   :expires-in    (get obj "expires_in")
+                                   :token-type    (get obj "token_type")
+                                   ;; always Bearer!
+                                   :refresh-token (get obj "refresh_token")})
+                                 (success response raise))))
+                         (catch Throwable t (raise t))))))
+      ;; redirect to provider:
+      :default
+      (let [m {:client_id     (:id opts)
+               :redirect_uri  (:url opts)
+               :response_type :code}
+            m (into m (:endpoint-params opts))]
+        (response (redirect-to 307 (build-url (:url-endpoint opts) m)))))))
 
 
 (defn- ->handler-fn
@@ -101,18 +113,18 @@
   [x]
   (assert (some? x) "Function not given!")
   (cond
-   (fn? x) x
-   (map? x) (fn [req resp err] (resp x))
-   (instance? java.net.URL x)
-   (fn [req resp err] (resp (redirect-to x)))
-   (instance? java.net.URI x)
-   (fn [req resp err] (resp (redirect-to x)))
-   :else
-   (throw (IllegalArgumentException.
+    (fn? x) x
+    (map? x) (fn [req resp err] (resp x))
+    (instance? java.net.URL x)
+    (fn [req resp err] (resp (redirect-to x)))
+    (instance? java.net.URI x)
+    (fn [req resp err] (resp (redirect-to x)))
+    :else
+    (throw (IllegalArgumentException.
            (str "Can not create fn from " (type x))))))
 
 
-(def wrap-oauth nil)
+; (def wrap-oauth nil)
 (defmulti wrap-oauth (fn [_ & {s :service}](some-> s name .toLowerCase)))
 
 
@@ -129,12 +141,14 @@
                  (update :success ->handler-fn))]
     (fn
       ([request]
+       (println :1)
        (let [p (promise)]
          (if (= (request->url request) url)
            (handle-oauth request (partial deliver p) (partial deliver p) opts)
            (deliver p (handler request)))
-         (when (instance? Throwable @p) (throw @p) @p)))
+         (if (instance? Throwable @p) (throw @p) @p)))
       ([request response raise]
+       (println :2)
        (if (= (request->url request) url)
          (handle-oauth request response raise opts)
          (handler request response raise))))))
@@ -185,6 +199,21 @@
                  response
                  raise))))))
 
+(defn google-success-handler-wrapper [handler]
+  (fn
+    ([request]
+     (->> request :oauth-success :access-token
+          (facebook-token->userinfo)
+          (assoc-in request [:oauth-success :user-info])
+          (handler)))
+    ([request response raise]
+     (google-token->userinfo
+      (-> request :oauth-success :access-token)
+      (fn [user-info]
+        (handler (assoc-in request [:oauth-success :user-info] user-info)
+                 response
+                 raise))))))
+
 
 ;; TODO: Test this.
 ;; TODO: add refresh_token and expires parameters to success fun.
@@ -203,7 +232,7 @@
    :secret          secret
    :url-endpoint    "https://accounts.google.com/o/oauth2/auth"
    :url-exchange    "https://accounts.google.com/o/oauth2/token"
-   :success         success
+   :success         (google-success-handler-wrapper success)
    :error           error
    :endpoint-params {:scope (clojure.string/join " " scopes)
                      :access_type "offline"}))

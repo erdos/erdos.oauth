@@ -2,9 +2,11 @@
   (:require [erdos.oauth]
             [org.httpkit.server]))
 
+;; these values should be according to your app settings
 (def google-app-id "")
 (def google-app-secret "")
-(def login-url "http://localhost:8080/oauth")
+(def login-url "http://localhost:8000/oauth/analytics")
+
 
 (defn default-handler [request]
   {:status 200
@@ -13,16 +15,18 @@
                  login-url)})
 
 (defn on-error [request response raise]
-  (println request)
   (response
    {:status 200
-    :body "Error during logging in!"}))
+    :body (str "Error during logging in: " (:oauth-error request))}))
 
 (defn on-success [request response raise]
-  (println request)
+  ;; we should save the user id to session variables and redirect
   (response
    {:status 200
-    :body "Success!"}))
+    :body (str "Success! You are: "
+               (-> request :oauth-success :user-info :name)
+               " with id "
+               (-> request :oauth-success :user-info :id))}))
 
 (def wrapped-handler
   (->
@@ -39,8 +43,8 @@
 
 (defn main []
   (let [s (org.httpkit.server/run-server
-           default-handler {:port 8080})]
+           wrapped-handler {:port 8000})]
     (Thread/sleep 20000)
     (s)))
+
 ;;(main)
-2

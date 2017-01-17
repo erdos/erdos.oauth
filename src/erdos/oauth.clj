@@ -46,46 +46,50 @@
                     First arg: request map, second arg: token.
   - :error        - Binary function called on failure.
                     First arg: request map, second arg: error info."
-  ([request response raise {:as opts :keys [error success]}]
-   (assert (= (request->url request) (:url opts)))
-   (assert (string? (:url-endpoint opts)))
-   (assert (string? (:url-exchange opts)))
-   (assert (string? (:id opts)))
-   (assert (string? (:secret opts)))
-   (assert (string? (:url opts)))
-   (assert (fn? (:success opts)))
-   (assert (fn? (:error opts)))
-   ;; (println request)
-   (cond
-     (-> request :query-params (get "error"))
-     (response (error request (-> request :query-params (get "error"))))
-     (-> request :query-params (get "code"))
-     (let [code (-> request :query-params (get "code"))
-           m {"grant_type"    "authorization_code"
-              "code"          code
-              "redirect_uri"  (:url opts)
-              "client_id"     (:id opts)
-              "client_secret" (:secret opts)}
-           p (client/post (:url-exchange opts) {:form-params m})]
-       ;; (println ">>" obj)
-       (println :code)
-                                        ;(println ".." (str @p))
-                                        ;(println ">>" obj)
-                                        ;(assert (get obj "access_token") (str "Unexpected: " obj))
-       (when-let [error (-> p deref :error)]
-         (throw (new RuntimeException (str error))))
-       (let [obj (-> p deref :body json/parse-string)]
-         (response (success request {:access-token  (get obj "access_token"),
-                                     :expires-in    (get obj "expires_in"),
-                                     :token-type    (get obj "token_type") ;; always Bearer!
-                                     :refresh-token (get obj "refresh_token")}))))
-     :default ;; not any parameters,
-     (let [m {:client_id     (:id opts)
-              :redirect_uri  (:url opts)
-              :response_type :code}
-           m (into m (:endpoint-params opts))]
-       (println :default)
-       (response (redirect-to 307 (build-url (:url-endpoint opts) m)))))))
+  [request response raise {:as opts :keys [error success]}]
+  (assert (= (request->url request) (:url opts)))
+  (assert (string? (:url-endpoint opts)))
+  (assert (string? (:url-exchange opts)))
+  (assert (string? (:id opts)))
+  (assert (string? (:secret opts)))
+  (assert (string? (:url opts)))
+  (assert (fn? (:success opts)))
+  (assert (fn? (:error opts)))
+  ;; (println request)
+  (cond
+    (-> request :query-params (get "error"))
+    (response (error request (-> request :query-params (get "error"))))
+    (-> request :query-params (get "code"))
+    (let [code (-> request :query-params (get "code"))
+          m {"grant_type"    "authorization_code"
+             "code"          code
+             "redirect_uri"  (:url opts)
+             "client_id"     (:id opts)
+             "client_secret" (:secret opts)}]
+      (client/post (:url-exchange opts)
+                   {:form-params m}
+                   (fn [resp]
+                     (try
+                       (if-let [err (:error resp)]
+                         (error (assoc request :oauth-error err)
+                                response
+                                raise)
+                         (let [obj (-> resp :body json/parse-string)
+                               m   {:access-token  (get obj "access_token"),
+                                    :expires-in    (get obj "expires_in"),
+                                    :token-type    (get obj "token_type")
+                                    ;; always Bearer!
+                                    :refresh-token (get obj "refresh_token")}]
+                           (success (assoc request :oauth-success m)
+                                    response
+                                    raise)))
+                       (catch Throwable t (raise t))))))
+    :default ;; not any parameters,
+    (let [m {:client_id     (:id opts)
+             :redirect_uri  (:url opts)
+             :response_type :code}
+          m (into m (:endpoint-params opts))]
+      (response (redirect-to 307 (build-url (:url-endpoint opts) m))))))
 
 
 (defn- ->handler-fn
@@ -94,13 +98,11 @@
   (assert (some? x) "Function not given!")
   (cond
    (fn? x) x
-   (map? x) (fn [& _] x)
+   (map? x) (fn [req resp err] (resp x))
    (instance? java.net.URL x)
-   (constantly (redirect-to x))
+   (fn [req resp err] (resp (redirect-to x)))
    (instance? java.net.URI x)
-   (constantly (redirect-to x))
-   (string? x)
-   (constantly {:status 200 :body x})
+   (fn [req resp err] (resp (redirect-to x)))
    :else
    (throw (IllegalArgumentException.
            (str "Can not create fn from " (type x))))))
@@ -117,10 +119,12 @@
   (let [opts (-> opts
                  (update :error ->handler-fn)
                  (update :success ->handler-fn))]
-    (fn f
+    (fn
       ([request]
        (let [p (promise)]
-         (f request (partial deliver p) (partial deliver p))
+         (if (= (request->url request) url)
+           (handle-oauth request (partial deliver p) (partial deliver p) opts)
+           (deliver p (handler request)))
          (when (instance? Throwable @p) (throw @p) @p)))
       ([request response raise]
        (if (= (request->url request) url)

@@ -197,13 +197,13 @@
   (assert (coll? scopes) "No :scopes given.")
   (wrap-oauth
    handler
-   :url url
-   :id id
-   :secret secret
-   :url-endpoint "https://accounts.google.com/o/oauth2/auth"
-   :url-exchange "https://accounts.google.com/o/oauth2/token" ;; ezzel mi van.
-   :success (facebook-success-handler-wrapper success)
-   :error error
+   :url             url
+   :id              id
+   :secret          secret
+   :url-endpoint    "https://accounts.google.com/o/oauth2/auth"
+   :url-exchange    "https://accounts.google.com/o/oauth2/token"
+   :success         success
+   :error           error
    :endpoint-params {:scope (clojure.string/join " " scopes)
                      :access_type "offline"}))
 
@@ -211,17 +211,17 @@
 (defmethod wrap-oauth "facebook"
   [handler & {:keys [url success error id secret scopes]}]
   (assert (coll? scopes) "No :scopes given.")
-  (let [scopes (clojure.string/join " " scopes)]
-    (wrap-oauth
-     handler
-     :url url
-     :id id
-     :secret secret
-     :url-endpoint "https://www.facebook.com/dialog/oauth"
-     :url-exchange "https://graph.facebook.com/v2.3/oauth/access_token"
-     :success success
-     :error error
-     :endpoint-params {:scope scopes :response_type "code"})))
+  (wrap-oauth
+   handler
+   :url             url
+   :id              id
+   :secret          secret
+   :url-endpoint    "https://www.facebook.com/dialog/oauth"
+   :url-exchange    "https://graph.facebook.com/v2.3/oauth/access_token"
+   :success         (facebook-success-handler-wrapper success)
+   :error           error
+   :endpoint-params {:scope (clojure.string/join " " scopes)
+                     :response_type "code"}))
 
 
 (defmethod wrap-oauth "linkedin"

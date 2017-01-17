@@ -1,6 +1,6 @@
 # erdos.oauth
 
-A Clojure library designed to ... well, that part is up to you.
+A ring wrapper in Clojure for OAuth support.
 
 ## Usage
 

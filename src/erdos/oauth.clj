@@ -112,7 +112,8 @@
            (str "Can not create fn from " (type x))))))
 
 
-(defmulti wrap-oauth #(some-> %2 :service name .toLowerCase))
+(def wrap-oauth nil)
+(defmulti wrap-oauth (fn [_ & {s :service}](some-> s name .toLowerCase)))
 
 
 ;; TODO: error/succes fv mukodese is sync/async kene legyen.
@@ -243,8 +244,8 @@
 
 
 (defmacro defwrapper [m]
-  `(defn ~(symbol (str "wrap-oauth-" (name m))) [h# & opts#]
-     (apply wrap-oauth :service ~m opts#)))
+  `(defn ~(symbol (str "wrap-oauth-" (name m))) [h# ~'& opts#]
+     (apply wrap-oauth h# :service ~m opts#)))
 
 
 (defwrapper :facebook)

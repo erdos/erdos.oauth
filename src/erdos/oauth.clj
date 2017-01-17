@@ -111,7 +111,9 @@
    (throw (IllegalArgumentException.
            (str "Can not create fn from " (type x))))))
 
+
 (defmulti wrap-oauth #(some-> %2 :service name .toLowerCase))
+
 
 (defmethod wrap-oauth nil
   #_
@@ -134,6 +136,7 @@
        (if (= (request->url request) url)
          (handle-oauth request response raise opts)
          (handler request response raise))))))
+
 
 (defn google-token->userinfo
   ([token]
@@ -165,6 +168,22 @@
                                         :name (get m "name"))))))))
 
 
+(defn facebook-success-handler-wrapper [handler]
+  (fn
+    ([request]
+     (->> request :oauth-success :access-token
+          (facebook-token->userinfo)
+          (assoc-in request [:oauth-success :user-info])
+          (handler)))
+    ([request response raise]
+     (facebook-token->userinfo
+      (-> request :oauth-success :access-token)
+      (fn [user-info]
+        (handler (assoc-in request [:oauth-success :user-info] user-info)
+                 response
+                 raise))))))
+
+
 ;; TODO: Test this.
 ;; TODO: add refresh_token and expires parameters to success fun.
 (defmethod wrap-oauth "google"
@@ -175,17 +194,17 @@
   - https://developers.google.com/youtube/v3/guides/auth/server-side-web-apps#Obtaining_Access_Tokens"
   [handler & {:keys [url success error id secret scopes]}]
   (assert (coll? scopes) "No :scopes given.")
-  (let [scopes (clojure.string/join " " scopes)]
-    (wrap-oauth
-     handler
-     :url url
-     :id id
-     :secret secret
-     :url-endpoint "https://accounts.google.com/o/oauth2/auth"
-     :url-exchange "https://accounts.google.com/o/oauth2/token" ;; ezzel mi van.
-     :success success
-     :error error
-     :endpoint-params {:scope scopes :access_type "offline"})))
+  (wrap-oauth
+   handler
+   :url url
+   :id id
+   :secret secret
+   :url-endpoint "https://accounts.google.com/o/oauth2/auth"
+   :url-exchange "https://accounts.google.com/o/oauth2/token" ;; ezzel mi van.
+   :success (facebook-success-handler-wrapper success)
+   :error error
+   :endpoint-params {:scope (clojure.string/join " " scopes)
+                     :access_type "offline"}))
 
 
 (defmethod wrap-oauth "facebook"
@@ -202,6 +221,7 @@
      :success success
      :error error
      :endpoint-params {:scope scopes :response_type "code"})))
+
 
 (defmethod wrap-oauth "linkedin"
   #_
@@ -220,12 +240,15 @@
      :success      success
      :error        error)))
 
+
 (defmacro defwrapper [m]
   `(defn ~(symbol (str "wrap-oauth-" (name m))) [h# & opts#]
      (apply wrap-oauth :service ~m opts#)))
 
+
 (defwrapper :facebook)
 (defwrapper :google)
 (defwrapper :linkedin)
+
 
 :OK

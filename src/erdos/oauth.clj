@@ -115,6 +115,7 @@
 (defmulti wrap-oauth #(some-> %2 :service name .toLowerCase))
 
 
+;; TODO: error/succes fv mukodese is sync/async kene legyen.
 (defmethod wrap-oauth nil
   #_
   "For options: see handle-oauth function.

@@ -2,7 +2,14 @@
 
 A ring wrapper in Clojure for OAuth support.
 
+## Note
+
+This is a Work-In-Progress support. Examples are expected to run but many (undocumented) features are subject to change.
+
+
 ## Usage
+
+See the [example](test/erdos/oauth_test.clj) for a *demo application*!
 
 1. Create an app id and secret on the admin console of the selected oauth provider.
 2. Create success and error callback functions as below.

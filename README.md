@@ -9,7 +9,7 @@ This is a Work-In-Progress support. Examples are expected to run but many (undoc
 
 ## Usage
 
-See the [example](test/erdos/oauth_demo.clj) for a *demo application*!
+### See the [example](test/erdos/oauth_demo.clj) for a demo application!
 
 1. Create an app id and secret on the admin console of the selected oauth provider.
 2. Create success and error callback functions as below.

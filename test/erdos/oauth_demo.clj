@@ -3,30 +3,30 @@
             [org.httpkit.server]))
 
 ;; these values should be according to your app settings
-(def google-app-id "")
-(def google-app-secret "")
-(def login-url "http://localhost:8000/oauth/analytics")
+
+(def config-map (read-string (slurp "/tmp/google-auth-config")))
+
+(def google-app-id (:app-id config-map))
+(def google-app-secret (:app-secret config-map))
+(def login-url (:url config-map))
 
 
 (defn default-handler [request]
-  {:status 200
-   :headers {"Content-Type" "text/html"}
-   :body (format "Click <a href=\"%s\">here</a> to log in."
-                 login-url)})
+  (if-let [err (-> request :oauth-error)]
+    {:status 200
+     :headers {"Content-Type" "text/html"}
+     :body (str "login error: " (pr-str err))}
+    {:status 200
+     :headers {"Content-Type" "text/html"}
+     :body (format "Click <a href=\"%s\">here</a> to log in." login-url)}))
 
-(defn on-error [request response raise]
-  (response
-   {:status 200
-    :body (str "Error during logging in: " (:oauth-error request))}))
-
-(defn on-success [request response raise]
+(defn on-success [request]
   ;; we should save the user id to session variables and redirect
-  (response
-   {:status 200
-    :body (str "Success! You are: "
-               (-> request :oauth-success :user-info :name)
-               " with id "
-               (-> request :oauth-success :user-info :id))}))
+  {:status 200
+   :body (str "Success! You are: "
+              (-> request :oauth-success :user-info :name)
+              " with id "
+              (-> request :oauth-success :user-info :id))})
 
 (def wrapped-handler
   (->
@@ -36,7 +36,7 @@
     :id      google-app-id
     :secret  google-app-secret
     :success on-success
-    :error   on-error
+    ;:error   on-error
     :scopes  ["https://www.googleapis.com/auth/analytics.readonly"
               "https://www.googleapis.com/auth/userinfo.email"
               "https://www.googleapis.com/auth/userinfo.profile"])))
@@ -44,7 +44,7 @@
 (defn main []
   (let [s (org.httpkit.server/run-server
            wrapped-handler {:port 8000})]
-    (Thread/sleep 20000)
+    (Thread/sleep 60000) ;; server is alive for 1 minute
     (s)))
 
 ;;(main)

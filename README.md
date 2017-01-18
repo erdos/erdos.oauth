@@ -42,6 +42,12 @@ This is a Work-In-Progress support. Examples are expected to run but many (undoc
 
 ```
 
+## Best practices
+
+1. The keys `:url`, `:id`, `:secret` should come from a configuration file. Also, make sure not to commit them to an open repository.
+2. The `:success` and `:error` functions should log the `:oauth-success` and `:oauth-error` values from the request map and redirect the user as soon as possible. This is to prevent the user to see any error page by refreshing the page accidentally.
+3. Start using the asycronous patterns for ring handlers to increase throughput of your backend systems.
+
 ## License
 
 Copyright © 2017 FIXME

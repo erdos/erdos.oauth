@@ -18,7 +18,7 @@
      :body (str "login error: " (pr-str err))}
     {:status 200
      :headers {"Content-Type" "text/html"}
-     :body (format "Click <a href=\"%s\">here</a> to log in." login-url)}))
+     :body (format "Click <a href=\"%s?state=login+action\">here</a> to log in." login-url)}))
 
 (defn on-success [request]
   ;; we should save the user id to session variables and redirect

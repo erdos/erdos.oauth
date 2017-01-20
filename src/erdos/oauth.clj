@@ -53,17 +53,17 @@
          (catch Throwable t (raise-fn t)))))
 
 
-(defn- handle-oauth-error [query-param-error request response raise opts]
-  (do-callback (assoc request :oauth-error query-param-error)
+(defn- handle-oauth-error [params request response raise opts]
+  (do-callback (assoc request :oauth-error (get params "error"))
                (:callback-async? opts)
                response raise
                (:error opts)))
 
 
-(defn- handle-oauth-code [code request response raise
+(defn- handle-oauth-code [params request response raise
                           {:as opts :keys [error success callback-async?]}]
   (let [m {"grant_type"    "authorization_code"
-           "code"          code
+           "code"          (get params "code")
            "redirect_uri"  (:url opts)
            "client_id"     (:id opts)
            "client_secret" (:secret opts)}]
@@ -75,7 +75,9 @@
                        ;; code is maybe expired, etc.
                        (if-let [err (get obj "error")]
                          (-> request
-                             (assoc :oauth-error err)
+                             (assoc :oauth-error
+                                    {:error err
+                                     :state (get params "state")})
                              (do-callback callback-async? response raise error))
                          (let [request
                                (assoc request
@@ -84,7 +86,8 @@
                                        :expires-in    (get obj "expires_in")
                                        :token-type    (get obj "token_type")
                                        ;; always Bearer!
-                                       :refresh-token (get obj "refresh_token")})]
+                                       :refresh-token (get obj "refresh_token")
+                                       :state         (get params "state")})]
                            (if-let [user-info-method
                                     (get-method request-user-info (some-> opts :service name .toLowerCase))]
                              (user-info-method
@@ -95,7 +98,8 @@
                                     (do-callback callback-async? response raise success)))
                               (fn ui-error [err]
                                 (-> request
-                                    (assoc-in [:oauth-error :user-info err])
+                                    (assoc-in [:oauth-error {:user-info err
+                                                             :state     (get params "state")}])
                                     (do-callback callback-async? response raise error)))
                               opts)
                              (do-callback request callback-async? response raise success)))))
@@ -104,11 +108,12 @@
 
 (defn- handle-oauth-default
   "Redirects to the oauth authentication endpoint"
-  [request response raise opts]
+  [params request response raise opts]
   (->> (:endpoint-params opts)
        (into {:client_id     (:id opts)
               :redirect_uri  (:url opts)
-              :response_type :code})
+              :response_type :code
+              :state (get params "state")})
        (build-url (:url-endpoint opts))
        (redirect-to 307)
        (response)))
@@ -138,13 +143,13 @@
     (cond
       ;; error during login:
       (contains? query-params "error")
-      (handle-oauth-error (get query-params "error") request response raise opts)
+      (handle-oauth-error query-params request response raise opts)
       ;; successfully redirected back:
       (contains? query-params "code")
-      (handle-oauth-code (get query-params "code") request response raise opts)
+      (handle-oauth-code query-params request response raise opts)
       ;; redirect to provider:
       :default
-      (handle-oauth-default request response raise opts))))
+      (handle-oauth-default query-params request response raise opts))))
 
 
 (defn- ->handler-fn

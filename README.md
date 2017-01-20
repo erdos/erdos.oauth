@@ -42,6 +42,14 @@ This is a Work-In-Progress support. Examples are expected to run but many (undoc
 
 ```
 
+### Options
+
+- `:url` - This url is your OAuth client endpoint. You will need to direct your users to this url to start the authentication process. Also, your users will be redirected to this url after the auth process.
+- `:id, :secret`  - Your Client Id and Client Secret is set up in the ui of the service providers.
+- `:error, :success` - There ring handler functions are called after the OAuth action. Ther equest map will contain a `:oauth-success` or `:oauth-error` key containing the credentials or error description.
+- `:scopes` - A collection of scopes you request.
+
+
 ## Best practices
 
 1. The keys `:url`, `:id`, `:secret` should come from a configuration file. Also, make sure not to commit them to an open repository.

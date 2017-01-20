@@ -12,6 +12,8 @@
        (if-let [p (:server-port req)] (str ":" p))
        (:uri req)))
 
+(defn- request-matches-url? [url req]
+  (= url (request->url req)))
 
 (defn- redirect-to
   ([s] {:status 302, :headers {"Location" (str s)}})
@@ -135,7 +137,7 @@
   - :success      - Asyncronous ring handler fn called on success.
   - :error        - Asyncronous ring handler fn called on error."
   [request response raise {:as opts :keys [error success callback-async?]}]
-  (assert (= (request->url request) (:url opts)))
+  (assert (request-matches-url? (:url opts) request))
   (assert (string? (:url-endpoint opts)))
   (assert (string? (:url-exchange opts)))
   (assert (string? (:id opts)))
@@ -185,7 +187,7 @@
                  (update :success (fnil ->handler-fn handler)))]
     (fn
       ([request]
-       (if (= (request->url request) url)
+       (if (request-matches-url? url request)
          (let [p (promise)]
            (handle-oauth request
                          (partial deliver p) (partial deliver p)
@@ -193,7 +195,7 @@
            (if (instance? Throwable @p) (throw @p) @p))
          (handler request)))
       ([request response raise]
-       (if (= (request->url request) url)
+       (if (request-matches-url? url request)
          (handle-oauth request
                        response raise
                        (update opts :callback-async? (fnil boolean true)))

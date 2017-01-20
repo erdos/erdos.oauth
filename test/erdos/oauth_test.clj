@@ -56,10 +56,10 @@
 
 (deftest build-url-test
   (testing "No args map"
-    (is (= "url" (@#'build-url "url" {})))
-    (is (= "url" (@#'build-url "url" nil))))
+    (is (= "url" (@#'eo/build-url "url" {})))
+    (is (= "url" (@#'eo/build-url "url" nil))))
 
   (testing "Simple cases"
-    (is (= "url?a=1" (@#'build-url "url" {"a" 1}))))
+    (is (= "url?a=1" (@#'eo/build-url "url" {"a" 1}))))
   (testing "Many types"
-    (is (= "url?a=1&b=b" (@#'build-url "url" {:a 1 :b 'b})))))
+    (is (= "url?a=1&b=b" (@#'eo/build-url "url" {:a 1 :b 'b})))))

@@ -42,6 +42,13 @@
     (.toString b)))
 
 
+(defn- assoc-if-val [m & kvs]
+  (apply (fn f
+           ([m] (persistent! m))
+           ([m k v & kvs] (apply f (if (some? v) (assoc! m k v) m) kvs)))
+         (transient (or m {})) kvs))
+
+
 (defn- do-callback [response-value callback-async? response-fn raise-fn callback]
   (assert (contains? #{true false} callback-async?))
   (assert (fn? response-fn))
@@ -80,14 +87,12 @@
                                      :state (get params "state")})
                              (do-callback callback-async? response raise error))
                          (let [request
-                               (assoc request
-                                      :oauth-success
-                                      {:access-token  (get obj "access_token")
+                               (update request :oauth-success assoc-if-val
+                                       :access-token  (get obj "access_token")
                                        :expires-in    (get obj "expires_in")
-                                       :token-type    (get obj "token_type")
-                                       ;; always Bearer!
+                                       :token-type    (get obj "token_type") ;; always Bearer!
                                        :refresh-token (get obj "refresh_token")
-                                       :state         (get params "state")})]
+                                       :state         (get params "state"))]
                            (if-let [user-info-method
                                     (get-method request-user-info (some-> opts :service name .toLowerCase))]
                              (user-info-method

@@ -87,6 +87,8 @@
                              (assoc :oauth-error
                                     {:error err
                                      :state (get params "state")})
+                             (update :oauth-error assoc-if-val
+                                     :service     (:service opts))
                              (do-callback callback-async? response raise error))
                          (let [request
                                (update request :oauth-success assoc-if-val
@@ -94,7 +96,8 @@
                                        :expires-in    (get obj "expires_in")
                                        :token-type    (get obj "token_type") ;; always Bearer!
                                        :refresh-token (get obj "refresh_token")
-                                       :state         (get params "state"))]
+                                       :state         (get params "state")
+                                       :service       (:service opts))]
                            (if-let [user-info-method
                                     (get-method request-user-info (some-> opts :service name .toLowerCase))]
                              (user-info-method
@@ -105,8 +108,9 @@
                                     (do-callback callback-async? response raise success)))
                               (fn ui-error [err]
                                 (-> request
-                                    (assoc-in [:oauth-error {:user-info err
-                                                             :state     (get params "state")}])
+                                    (assoc :oauth-error {:user-info err
+                                                         :state     (get params "state")})
+                                    (update :oauth-error assoc-if-val :service (:service opts))
                                     (do-callback callback-async? response raise error)))
                               opts)
                              (do-callback request callback-async? response raise success)))))

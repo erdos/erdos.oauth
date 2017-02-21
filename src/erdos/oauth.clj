@@ -209,12 +209,39 @@
 (defmethod wrap-oauth nil [handler & {:as opts}]
   (wrap-oauth-default handler opts))
 
+(defn- dispatch-on-service [x] (some-> x :service name .toLowerCase))
 
-;; asyncronous way to get user info from auth token
-(defmulti request-user-info (fn [token success error opts] (some-> opts :service name .toLowerCase)))
+;; asynchronous way to get user info from auth token
+(defmulti request-user-info
+  (fn [access-token success-callback error-callback opts] (dispatch-on-service opts)))
 
+;; asynchronously gets a new token using a refresh token
+(defmulti request-new-token
+  (fn [refresh-token success-callback error-callback opts] (dispatch-on-service opts)))
 
                                         ; GOOGLE
+
+(defmethod request-new-token "google" [refresh-token callback-fn error-fn opts]
+  (assert (string? refresh-token))
+  (assert (fn? callback-fn))
+  (assert (fn? error-fn))
+  (assert (map? opts))
+  (let [m {"client_id"     (:client-id opts)
+           "client_secret" (:client-secret opts)
+           "refresh_token" refresh-token
+           "grant_type"    "refresh_token"}]
+    (client/post
+     "https://www.googleapis.com/oauth2/v4/token"
+     {:headers {"Content-Type" "application/x-www-form-urlencoded"}
+      :form-params m}
+     (fn [response]
+       (if (#{200 201} (:status response))
+         (let [xs (json/decode (:body response))]
+           (if (get xs "access_token")
+             (callback-fn {:access-token (get xs "access_token")
+                           :expires-in   (get xs "expires_in")})
+             (error-fn xs)))
+         (error-fn response))))))
 
 
 (defmethod request-user-info "google" [token callback-fn error-fn _]

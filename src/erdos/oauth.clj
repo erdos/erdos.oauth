@@ -15,6 +15,12 @@
 (defn- request-matches-url? [url req]
   (= url (request->url req)))
 
+(defn request-matches-url? [url-pred req]
+  (let [url (request->url req)]
+    (cond (string? url-pred) (= url-pred url)
+          (set? url-pred)    (contains? url-pred url)
+          :otherwise         false)))
+
 (defn- redirect-to
   ([s] {:status 302, :headers {"Location" (str s)}})
   ([status s] {:status status, :headers {"Location" (str s)}}))

@@ -8,6 +8,10 @@
 
 (defn request->url [req]
   (str (-> req :scheme name) "://"
+       (get-in req [:headers "host"]) ;; mandatory, always available
+       (:uri req))
+  #_
+  (str (-> req :scheme name) "://"
        (:server-name req)
        (when-let [p (:server-port req)]
          (when-not (= 80 p) (str ":" p)))

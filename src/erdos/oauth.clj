@@ -9,12 +9,14 @@
 (defn request->url [req]
   (str (-> req :scheme name) "://"
        (:server-name req)
-       (if-let [p (:server-port req)] (str ":" p))
+       (when-let [p (:server-port req)]
+         (when-not (= 80 p) (str ":" p)))
        (:uri req)))
 
 (defn- request-matches-url? [url req]
   (= url (request->url req)))
 
+#_
 (defn request-matches-url? [url-pred req]
   (let [url (request->url req)]
     (cond (string? url-pred) (= url-pred url)

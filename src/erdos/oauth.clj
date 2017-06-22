@@ -7,15 +7,15 @@
 (declare request-user-info wrap-oauth)
 
 (defn request->url [req]
-  (str (-> req :scheme name) "://"
-       (get-in req [:headers "host"]) ;; mandatory, always available
-       (:uri req))
-  #_
-  (str (-> req :scheme name) "://"
-       (:server-name req)
-       (when-let [p (:server-port req)]
-         (when-not (= 80 p) (str ":" p)))
-       (:uri req)))
+  (let [;; protocol is maybe filled by proxy
+        protocol (get-in req
+                         [:headers "x-forwarded-proto"]
+                         (-> req :scheme name))
+        ;; host header is mandatory
+        host (get-in req [:headers "host"])
+        ;; uri is given by ring
+        uri (:uri req)]
+    (str protocol "://" host uri)))
 
 (defn- request-matches-url? [url req]
   (= url (request->url req)))

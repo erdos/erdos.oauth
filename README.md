@@ -25,11 +25,11 @@ This is a Work-In-Progress support. Examples are expected to run but many (undoc
 ``` clojure
 
 (def on-success [request response raise]
-    (println (:oauth-success request))
+    (println "Login successfull. Account info:" (:oauth-success request))
     (response {:status 200 :body "OK"}))
 
 (def on-error [request response raise]
-    (println (:oauth-error request))
+    (println "Login failed. Error info:" (:oauth-error request))
     (response {:status 500 :body "error!"}))
 
 (def handler

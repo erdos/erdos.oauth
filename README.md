@@ -61,6 +61,7 @@ This is a Work-In-Progress support. Examples are expected to run but many (undoc
 2. The `:success` and `:error` functions should log the `:oauth-success` and `:oauth-error` values from the request map and redirect the user as soon as possible. This is to prevent the user to see any error page by refreshing the page accidentally.
 3. On first login, store the `:refresh-token` in your database. This can be used to get an access token when the user is offline.
 4. Start using the asynchronous patterns for ring handlers to increase throughput of your backend systems.
+5. When behind a reverse proxy, add the `Host` and `X-Forwarded-Proto` headers to the request  to help url handling in the library.
 
 ## License
 

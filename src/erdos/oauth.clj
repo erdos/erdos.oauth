@@ -365,6 +365,16 @@
     :endpoint-params {:scope (clojure.string/join " " scopes)
                       :response_type "code"}}))
 
+(defmethod request-user-info "github" [token callback-fn error-fn _]
+  (client/get
+   "https://api.github.com/user"
+   {:headers {"Authorization" (str "token " token)}}
+   #(as-> (json/parse-string (:body %)) *
+      (assoc * :id (get * "id"))
+      (assoc * :name (get * "name"))
+      (callback-fn *)
+      (try * (catch Throwable t (error-fn t))))))
+
 
 ;; generating wrap-oauth-* functions
 

@@ -1,4 +1,4 @@
-(defproject io.github.erdos/erdos.oauth "0.1.2"
+(defproject io.github.erdos/erdos.oauth "0.1.3"
   :description "OAuth library for Ring in Clojure"
   :url "https://github.com/erdos/erdos.oauth"
   :license {:name "Eclipse Public License"

@@ -80,6 +80,11 @@
                response raise
                (:error opts)))
 
+(defn- into-str [x]
+  (cond (nil? x) nil
+        (string? x) x
+        (instance? java.io.InputStream x) (slurp x)
+        :default (throw (ex-info "Can not convert to string!" {:type (type x)}))))
 
 (defn- handle-oauth-code [params request response raise
                           {:as opts :keys [error success callback-async?]}]
@@ -89,10 +94,12 @@
            "client_id"     (:id opts)
            "client_secret" (:secret opts)}]
     (client/post (:url-exchange opts)
-                 {:form-params m}
+                 {:form-params m :headers {"accept" "application/json"}}
                  (fn [resp]
                    (try
-                     (let [obj (-> resp :body json/parse-string)]
+                     (let [body (-> resp :body into-str)
+                           _ (println body)
+                           obj (json/parse-string body)]
                        ;; code is maybe expired, etc.
                        (if-let [err (get obj "error")]
                          (-> request
@@ -341,6 +348,24 @@
       :success      success
       :error        error})))
 
+                                        ; GITHUB
+
+(defmethod wrap-oauth "github"
+  [handler & {:keys [url success error id secret scopes]}]
+  (wrap-oauth-default
+   handler
+   {:url url
+    :id id
+    :secret secret
+    :url-endpoint "https://github.com/login/oauth/authorize"
+    :url-exchange "https://github.com/login/oauth/access_token"
+    :success success
+    :error error
+    :service :github
+    :endpoint-params {:scope (clojure.string/join " " scopes)
+                      :response_type "code"}}))
+
+
 ;; generating wrap-oauth-* functions
 
 (defmacro defwrapper [& ms]
@@ -348,7 +373,7 @@
               `(defn ~(symbol (str "wrap-oauth-" (name m))) [h# ~'& opts#]
                  (apply wrap-oauth h# :service ~m opts#)))))
 
-(defwrapper :facebook :google :linkedin)
+(defwrapper :facebook :google :linkedin :github)
 
 
 'OK

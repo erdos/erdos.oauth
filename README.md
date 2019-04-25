@@ -2,15 +2,22 @@
 
 A ring wrapper in Clojure for OAuth support.
 
-## Note
-
-This is a Work-In-Progress support. Examples are expected to run but many (undocumented) features are subject to change.
+This is a Work-In-Progress project. Examples are expected to run but many (undocumented) features are subject to change. Please, feel free to open an Issue for bugs or improvements.
 
 ### Features
 
-- Out-of-the-box support for popular OAuth providers (`wrap-oauth-google`, `wrap-oauth-facebook`, etc.)
 - Easy to extend via multimethods
 - Supports both synchronous and asynchronous ring handlers
+- Helps to maintain OAuth lifecycle and automatically requests user information with OAuth token for authentication.
+
+### Out of the box support
+
+The project has default support for the following popular OAuth providers:
+
+- Google
+- Facebook
+- LinkedIn
+- GitHub
 
 ## Usage
 
@@ -65,7 +72,6 @@ This is a Work-In-Progress support. Examples are expected to run but many (undoc
 
 ## License
 
-Copyright © 2017 FIXME
+Copyright © 2017-2019 Janos Erdos
 
-Distributed under the Eclipse Public License either version 1.0 or (at
-your option) any later version.
+Distributed under the Eclipse Public License either version 1.0 or (at your option) any later version.

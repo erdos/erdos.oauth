@@ -1,6 +1,7 @@
 (ns erdos.oauth
   "OAuth client wrapper for Ring."
   (:require
+   [clojure.string :refer [join]]
    [org.httpkit.client :as client]
    [cheshire.core :as json]))
 
@@ -98,8 +99,7 @@
                  (fn [resp]
                    (try
                      (let [body (-> resp :body into-str)
-                           _ (println body)
-                           obj (json/parse-string body)]
+                           obj  (json/parse-string body)]
                        ;; code is maybe expired, etc.
                        (if-let [err (get obj "error")]
                          (-> request
@@ -292,7 +292,7 @@
     :url-exchange    "https://accounts.google.com/o/oauth2/token"
     :success         success
     :error           error
-    :endpoint-params {:scope (clojure.string/join " " scopes)
+    :endpoint-params {:scope (join " " scopes)
                       :access_type "offline"
                       :include_granted_scopes true}}))
 
@@ -324,7 +324,7 @@
     :url-exchange    "https://graph.facebook.com/v2.3/oauth/access_token"
     :success         success
     :error           error
-    :endpoint-params {:scope (clojure.string/join " " scopes)
+    :endpoint-params {:scope (join " " scopes)
                       :response_type "code"}}))
 
 
@@ -362,7 +362,7 @@
     :success success
     :error error
     :service :github
-    :endpoint-params {:scope (clojure.string/join " " scopes)
+    :endpoint-params {:scope (join " " scopes)
                       :response_type "code"}}))
 
 (defmethod request-user-info "github" [token callback-fn error-fn _]
